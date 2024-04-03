@@ -31,17 +31,18 @@ class Empath:
         tokenizer = util.window_tokenizer(window_size,targets)
         return self.analyze(doc,categories,tokenizer,normalize)
 
-    def analyze(self,doc,categories=None,tokenizer="default",normalize=False):
-        if isinstance(doc,list):
+    def analyze(self, doc, categories=None, tokenizer="default", normalize=False):
+        if isinstance(doc, list):
             doc = "\n".join(doc)
         if tokenizer == "default":
             tokenizer = util.default_tokenizer
         elif tokenizer == "bigrams":
             tokenizer = util.bigram_tokenizer
-        if not hasattr(tokenizer,"__call__"):
+        if not hasattr(tokenizer, "__call__"):
             raise Exception("invalid tokenizer")
         if not categories:
             categories = self.cats.keys()
+    
         invcats = defaultdict(list)
         key = tuple(sorted(categories))
         if key in self.inv_cache:
@@ -50,20 +51,25 @@ class Empath:
             for k in categories:
                 for t in self.cats[k]: invcats[t].append(k)
             self.inv_cache[key] = invcats
-        count = {}
+    
+        count = defaultdict(float)
+        token_category_map = defaultdict(list)
         tokens = 0.0
-        for cat in categories: count[cat] = 0.0
+    
         for tk in tokenizer(doc):
             tokens += 1.0
-            for cat in invcats[tk]:
-                count[cat]+=1.0
+            for cat in invcats.get(tk, []):
+                count[cat] += 1.0
+                token_category_map[tk].append(cat)
+    
         if normalize:
-            for cat in count.keys():
-                if tokens == 0:
-                    return None
-                else:
+            if tokens == 0:
+                return None
+            else:
+                for cat in count:
                     count[cat] = count[cat] / tokens
-        return count
+    
+        return {'count': count, 'details': token_category_map}
 
 
     def create_category(self,name,seeds,model="fiction",size=100,write=True):
